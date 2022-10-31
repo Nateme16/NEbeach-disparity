@@ -139,5 +139,17 @@ trips_by_blockgroup_yearly= trips_by_blockgroup %>%
   group_by(Poi,Home,year) %>%
   summarise(trips= sum(total))
 
+#both years
 write.csv(trips_by_blockgroup_yearly,"Data/trips_by_blockgroup_yearly_NewEngland_oct22.csv")
-save(trips_by_blockgroup_yearly,file="trips_by_blockgroup_yearly_NewEngland_oct22.Rdata")
+save(trips_by_blockgroup_yearly,file="Data/trips_by_blockgroup_yearly_NewEngland_oct22.Rdata")
+
+#2018
+write.csv(trips_by_blockgroup_yearly[trips_by_blockgroup_yearly$year=="2018",],"Data/trips_by_blockgroup_yearly_2018_NewEngland_oct22.csv")
+save(trips_by_blockgroup_yearly,file="Data/trips_by_blockgroup_yearly_2018NewEngland_oct22.Rdata")
+
+#2019
+write.csv(trips_by_blockgroup_yearly[trips_by_blockgroup_yearly$year=="2019",],"Data/trips_by_blockgroup_yearly_2019_NewEngland_oct22.csv")
+save(trips_by_blockgroup_yearly,file="Data/trips_by_blockgroup_yearly_2019_NewEngland_oct22.Rdata")
+
+
+
