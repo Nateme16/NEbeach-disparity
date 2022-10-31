@@ -9,6 +9,7 @@ library(readr)
 rm(list=ls()) #clear all
 
 
+
 ####Create POI summary info for all months together####
 
 file_list <- list.files(pattern="poi_summary*", recursive = TRUE)
