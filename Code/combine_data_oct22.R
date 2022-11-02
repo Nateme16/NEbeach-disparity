@@ -106,7 +106,7 @@ for (i in 1:length(file_list)){
   
   # Append all other datasets to the base dataset
   if (i !=  1){
-    dataset <- read_csv(file_list[i])
+    dataset <- read_csv(file_list[i]) 
     
     dataset2=dataset[,c(1,2,4:32)]
     
