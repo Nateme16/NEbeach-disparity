@@ -6,17 +6,15 @@ library(dplyr)
 library(R.utils)
 library(readr)
 
-
 rm(list=ls()) #clear all
 
-
-
 ####Create POI summary info for all months together####
-#create this file path so that it matches you will have on your computer
-#Looking username
-#Build One path for working directory
 
-setwd- C:\Users\NMERRI02\Environmental Protection Agency (EPA)\ACESD Social Science Team - Documents\General\Research Projects\Beach research STRAP4\New England beach cell data\NEbeach-disparity\data
+#build path to data files sensitive to usernames in OneDrive link
+wd= paste("C:/Users/",Sys.getenv("USERNAME"),"/Environmental Protection Agency (EPA)/ACESD Social Science Team - Documents/General/Research Projects/Beach research STRAP4/New England beach cell data/NEbeach-disparity/data", sep = "")
+
+setwd(wd)
+
 file_list <- list.files(pattern="poi_summary*", recursive = TRUE)
 
 for (i in 1:length(file_list)){
