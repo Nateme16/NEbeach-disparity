@@ -11,7 +11,7 @@ rm(list=ls()) #clear all
 ####Create POI summary info for all months together####
 
 #build path to data files sensitive to usernames in OneDrive link
-wd= paste("C:/Users/",Sys.getenv("USERNAME"),"/Environmental Protection Agency (EPA)/ACESD Social Science Team - Documents/General/Research Projects/Beach research STRAP4/New England beach cell data/NEbeach-disparity/data", sep = "")
+wd= paste("C:/Users/",Sys.getenv("USERNAME"),"/Environmental Protection Agency (EPA)/ACESD Social Science Team - General/Research Projects/Beach research STRAP4/New England beach cell data/NEbeach-disparity/data", sep = "")
 
 setwd(wd)
 
