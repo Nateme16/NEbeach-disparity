@@ -1,4 +1,3 @@
-
 #Creating Beach Visitation for New England with first and missing days from Airsage#
 library(here)
 library(gtools)
