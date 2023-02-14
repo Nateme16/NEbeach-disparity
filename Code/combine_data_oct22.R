@@ -98,7 +98,7 @@ for (i in 1:length(file_list)){
     
     dataset2$month=filename
     
-    totaltrips= data.frame(c(dataset2[,c(5:11)], 3*dataset2[,c(12:18)], 6*dataset2[,c(19:25)] , 8*dataset2[,c(26:31)]))
+    totaltrips= data.frame(c(dataset2[,c(5:11)], 3*dataset2[,c(12:18)], 6*dataset2[,c(19:25)] , 8*dataset2[,c(26:31)])) #check on these bin middles
     totaltrips$total=rowSums(totaltrips)
     
     dataset2$total=totaltrips$total
