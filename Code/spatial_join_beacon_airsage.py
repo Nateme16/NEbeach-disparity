@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tues 2/28/2023
-
 @author: EBURMA01
-
 README: 
 Script to spatially join Airsage cell data and EPA water quality data 
-
 """
 
 #%%---------------------------------------------------------------------------
