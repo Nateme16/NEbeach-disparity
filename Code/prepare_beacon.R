@@ -27,7 +27,7 @@ bacteria$day <- as.character(substr(bacteria$ActivityStartDate, 9, 10))
 
 bacteria=bacteria[,c("poi","cfu","year","month","day")]
 
-#collapse to year
+#collapse to year- 
 bacteria2= bacteria %>%
   group_by(poi,year) %>%
   summarise(cfu2=mean(cfu),
@@ -38,6 +38,19 @@ bacteria2= bacteria %>%
 bacteria2=bacteria2[,c("poi","cfu2","exceed100","exceed100perc","n","year")]
 
 write.csv(bacteria2,"Data/bacteria_yearly.csv")
+
+
+#collapse to window of years- 
+bacteria2= bacteria %>%
+  group_by(poi,year) %>%
+  summarise(cfu2=mean(cfu),
+            n=n(),
+            exceed100=sum(cfu > 100),
+            exceed100perc=exceed100/n)
+
+bacteria2=bacteria2[,c("poi","cfu2","exceed100","exceed100perc","n","year")]
+
+write.csv(bacteria2,"Data/bacteria_window.csv")
 
 
 
