@@ -11,9 +11,9 @@ rm(list=ls()) #clear all
 ####Create POI summary info for all months together####
 
 #build path to data files sensitive to usernames in OneDrive link
-#wd= paste("C:/Users/",Sys.getenv("USERNAME"),"/Environmental Protection Agency (EPA)/ACESD Social Science Team - General/Research Projects/Beach research STRAP4/New England beach cell data/NEbeach-disparity/data", sep = "")
+wd= paste("C:/Users/",Sys.getenv("USERNAME"),"/Environmental Protection Agency (EPA)/ACESD Social Science Team - General/Research Projects/Beach research STRAP4/New England beach cell data/NEbeach-disparity/data", sep = "")
 
-#setwd(wd)
+setwd(wd)
 
 trips=read.csv("data/trips_by_blockgroup_yearly_NewEngland_oct22.csv")
 
@@ -98,7 +98,7 @@ dem2= dem %>%
 #connect wq to beaches
 wq=read.csv("data/bacteria_yearly.csv")
 dem2$poi=dem2$Poi
-data=merge(wq,dem2,by=c("poi"))
+data=merge(wq,dem2,by=c("poi","year")) #connect by year too or whatever we want to do, this is wrong as is
 
 #regress wq on demographics
 reg1=lm(exceed100perc~white,data=data)
