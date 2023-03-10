@@ -21,50 +21,49 @@ import os
 import numpy as np
 import datetime
 
-
-# everything from here below needs to be re-adapted to this project
-# Do we want a flexible environment so others can run this? 
-# This would be hard without getting everyone set up with an ArcPy 
-# environment 
-
-#vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-# Set whether or not you want to create a fresh, empty workspace for this script
-# (ONLY do this the first time; otherwise, you'll have to run everything again)
-createNewWorkspace = False
-#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
 #Set your working directory (address of the project folder)
-workingDirectory = r'xyz\project folder'
+workingDirectory = r'C:\Users\EBURMA01\Environmental Protection Agency (EPA)\ACESD Social Science Team - General\Research Projects\Beach research STRAP4\New England beach cell data\NEbeach-disparity\data'
 
 # Set the folder where the data is 
-dataFolder = os.path.join(workingDirectory, 'Data')
+dataFolder = r'C:\Users\EBURMA01\Environmental Protection Agency (EPA)\ACESD Social Science Team - General\Research Projects\Beach research STRAP4\New England beach cell data\NEbeach-disparity\data'
 
-## Set the folder where you want to send (non-fc) outputs 
-#outFolder = os.path.join(workingDirectory , 'Outputs')
 
 # Set the name of the arcPy workspace, whether new or old 
 workspacePath = workingDirectory
 workspaceName = 'beachEJ.gdb'
-
-#%%---------------------------------------------------------------------------
-
-if createNewWorkspace == True: 
-    # Make a gdb workspace. Delete and remake if named gdb already exists.
-    env.workspace = fun.makeGDB(
+# Make a gdb workspace. Delete and remake if named gdb already exists.
+env.workspace = fun.makeGDB(
         gdbOutPath =  workspacePath,
         gdbName = workspaceName)
 
-else: 
-    # Set the ArcPy workspace, which is a geodatabase (gdb) where all the output 
-    # files go. 
-    env.workspace = os.path.join(workspacePath, workspaceName)
-    
 #%%---------------------------------------------------------------------------
- 
+
 # bring in beach data
+# turn it into points fc
+# !!!is currently in RI state plane, could change projection
+beachDic = {'beach':'resultphyschem.csv'}
+fun.inPoints(beachDic, dataFolder)
 # bring in airsage 
+airDic = {'airSage' : 'NEandNY_150_d_f_Simplify_Final.shp'}
+fun.putGDB(airDic, dataFolder)
+
     
 # spatial join with tolerance 
-    
-    
+infile = 'airSage'
+jFile = 'beach'
+outFile = 'beachAirsageJoin'
+arcpy.analysis.SpatialJoin(infile, jFile, outFile,
+#                           maybe do field mapping?
+#                               field_mapping=fieldMappings,
+                               join_operation = 'JOIN_ONE_TO_MANY',
+                               match_option = 'WITHIN_A_DISTANCE',
+                               search_radius = '200 meters'
+                               # {join_operation}, {join_type}, {field_mapping}, {match_option}, {search_radius},
+                               # {distance_field_name}
+                               )
+
+# convert to data frame and then export to csv
+
+outDf = fun.table_to_data_frame('beachAirsageJoin')
+currentDateTime = datetime.datetime.now().strftime("%m-%d-%Y-%H%M%S%p")
+outDf.to_csv(path_or_buf= os.path.join(dataFolder, f"beachAirsageJoined_{currentDateTime}.csv"))

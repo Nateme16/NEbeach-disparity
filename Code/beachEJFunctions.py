@@ -18,6 +18,27 @@ import pandas as pd
 import os
 import numpy as np
 
+def inPoints(pointsDict, inPath):
+# This function turns tabular data with coordinates into point fcs 
+# 'pointsDic': an object (dic or list) containing filenames to transform. If 
+# pointsDic is a dic, it relates filenames to their desired fc name. 
+# inPath: path to the directory where the input fiels are.
+
+    # defines coordinate system to use. This code corresponds to the NAD RI State Plane one. 
+        spatRef = arcpy.SpatialReference(4269)
+    # Input files with long filenames are passed to this function in a dic relating
+    # the too-long filenames to short aliases for output
+
+        arcpy.env.overwriteOutput = True
+        for alias, file in pointsDict.items():
+            arcpy.management.XYTableToPoint(os.path.join(inPath, file),
+                                            alias,
+                                            "ActivityLocation/LongitudeMeasure", 
+                                            "ActivityLocation/LatitudeMeasure",
+                                            coordinate_system=spatRef)  
+            print(file + " added to gdb as " + alias + "\n")
+        arcpy.env.overwriteOutput = False    
+
 
 def makeGDB(gdbOutPath, gdbName):
     # This function makes a new geodatabase (gdb), and deletes any existing gdb of same name
@@ -58,7 +79,7 @@ def putGDB(fileObj, inPath, IsGDB=False, suffix = "Pts"):
             arcpy.conversion.FeatureClassToGeodatabase(
                 fullPath, env.workspace+'\\')
             # gets the name of the feature class just created
-            # god this is horrible code
+            # this is horrible code
             tempName = path[path.rfind('\\')+1:path.rfind('.')]
             # rename feature class according to alias
             # but only if the original file's tempname != alias
@@ -98,4 +119,21 @@ def putGDB(fileObj, inPath, IsGDB=False, suffix = "Pts"):
         else:  
             print('Invalid parameter fileObj. This parameter must be a dict or a list.')
             
-
+def table_to_data_frame(in_table, input_fields=None, where_clause=None):
+    # this function converts an arcgis table (e.g. from an fc) into a pandas dataframe with an 
+    # object ID index
+    # 'in_table' is the fc to convert 
+    # the other argments came from the internet so good luck. I guess you can 
+    # subset and select which fields and attributes to include.
+    # returns a converted df 
+    
+    OIDFieldName = arcpy.Describe(in_table).OIDFieldName
+    if input_fields:
+        final_fields = [OIDFieldName] + input_fields
+    else:
+        final_fields = [field.name for field in arcpy.ListFields(in_table)]
+    data = [row for row in arcpy.da.SearchCursor(
+        in_table, final_fields, where_clause=where_clause)]
+    fc_dataframe = pd.DataFrame(data, columns=final_fields)
+    out_df = fc_dataframe.set_index(OIDFieldName, drop=True)
+    return out_df
