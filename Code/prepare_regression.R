@@ -11,9 +11,9 @@ rm(list=ls()) #clear all
 ####Create POI summary info for all months together####
 
 #build path to data files sensitive to usernames in OneDrive link
-wd= paste("C:/Users/",Sys.getenv("USERNAME"),"/Environmental Protection Agency (EPA)/ACESD Social Science Team - General/Research Projects/Beach research STRAP4/New England beach cell data/NEbeach-disparity/data", sep = "")
+#wd= paste("C:/Users/",Sys.getenv("USERNAME"),"/Environmental Protection Agency (EPA)/ACESD Social Science Team - General/Research Projects/Beach research STRAP4/New England beach cell data/NEbeach-disparity/data", sep = "")
 
-setwd(wd)
+#setwd(wd)
 
 trips=read.csv("data/trips_by_blockgroup_yearly_NewEngland_oct22.csv")
 
@@ -87,7 +87,8 @@ dem=dem_m
 
 dem$whitetrips=dem$trips*dem$white
 
-#collapse demographics to beaches
+###YEARLY###
+#collapse demographics to beaches yearly
 
 dem2= dem %>%
   group_by(Poi,year) %>%
@@ -95,12 +96,36 @@ dem2= dem %>%
             whitetrips=sum(whitetrips),
             white= whitetrips/total)
 
-#connect wq to beaches
-wq=read.csv("data/bacteria_yearly.csv")
 dem2$poi=dem2$Poi
-data=merge(wq,dem2,by=c("poi","year")) #connect by year too or whatever we want to do, this is wrong as is
+
+#connect wq to beaches yearly
+wq=read.csv("data/bacteria_yearly.csv")
+data=merge(wq,dem2,by=c("poi","year")) 
 
 #regress wq on demographics
 reg1=lm(exceed100perc~white,data=data)
 summary(reg1)
+
+###WINDOW###
+
+#collapse demographics to beaches window
+
+dem3= dem %>%
+  group_by(Poi) %>%
+  summarise(total=sum(trips),
+            whitetrips=sum(whitetrips),
+            white= whitetrips/total)
+
+dem3$poi=dem3$Poi
+
+#connect wq to beaches window
+wq_window=read.csv("data/bacteria_window.csv")
+
+data2=merge(wq_window,dem3,by=c("poi")) 
+
+#regress wq on demographics
+reg2=lm(exceed100perc~white,data=data2)
+summary(reg2)
+
+
 
