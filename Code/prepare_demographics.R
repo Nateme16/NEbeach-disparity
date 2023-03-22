@@ -242,20 +242,8 @@ dem2= dem %>%
             
             
   )
-# save result as beach demographic results
+# !!!save result as beach demographic results
+save(dem2,file="beach_demographics.Rdata")
 
 #cut here to regression file 
-
-
-#connect wq to beaches
-#Nate needs to fix 
-wq=read.csv("data/bacteria_yearly.csv")
-dem2$poi=dem2$Poi
-data=merge(wq,dem2,by=c("poi"))
-
-#Look at correlations bw variables, make scatterplots
-
-#regress wq on demographics
-reg1=lm(exceed100perc~white_pct,data=data)
-summary(reg1)
 
