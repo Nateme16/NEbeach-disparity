@@ -131,66 +131,81 @@ dem_m$med_household_income = dem_m$B19013_001 # copy median household income
 
 dem_m$hispanic_or_latino_pct = dem_m$B03003_003 / dem_m$B03003_001 #create %hispanic or latino
 
-dem_m$not_h_white_pct = dem_m$B03003_003 / dem_m$B03002_001 #create %non-hispanic or latino white
-dem_m$not_h_black_pct = dem_m$B03003_004 / dem_m$B03002_001 #create %non-hispanic or latino black/african american
-dem_m$not_h_ai_an_pct = dem_m$B03003_005 / dem_m$B03002_001 #create %non-hispanic or latino %american indian/alaska native
-dem_m$not_h_asian_pct = dem_m$B03003_006 / dem_m$B03002_001 #create %non-hispanic or latino black/african american
+dem_m$not_h_white_pct = dem_m$B03002_003 / dem_m$B03002_001 #create %non-hispanic or latino white
+dem_m$not_h_black_pct = dem_m$B03002_004 / dem_m$B03002_001 #create %non-hispanic or latino black/african american
+dem_m$not_h_ai_an_pct = dem_m$B03002_005 / dem_m$B03002_001 #create %non-hispanic or latino %american indian/alaska native
+dem_m$not_h_asian_pct = dem_m$B03002_006 / dem_m$B03002_001 #create %non-hispanic or latino black/african american
 
 dem_m$med_home_value = dem_m$B25077_001 #copy median home value
 
 #would be cool to add a timestamp to the end of this?
-# having an issue 
 save(dem_m,file="block_demographics_bg_Erin.Rdata")
 #load(file="data/block_demographics.Rdata")
 
-#cut here?
 
 dem=dem_m
 
+# drop the columns named after census codes (e.g. B0100340)
+dem = dem %>% select(-one_of(varlist))
+
 #dem=dem[dem$trips>0,]
+
+# make trip counts for weighting home value and income, that exclude trips from 
+# bgs with no income or value info 
+
+
+dem = dem %>%
+  mutate(
+    trips_for_value = if_else(is.nan(med_home_value), NA_real_, trips)
+  )
+
+dem = dem %>%
+  mutate(
+    trips_for_income = if_else(is.nan(med_household_income), NA_real_, trips)
+  )
+
 
 #"trip-weight"/apportion census vars by multiplying them by number of trips
 percent_vars = list(
-                    dem$white_pct,
-                    dem$black_afam_pct,
-                    dem$am_ind_ak_ntv_pct,
-                    dem$asian_pct,
-                    dem$ntv_hw_pac_isl_pct,
-                    dem$some_other_race_pct,
-                    dem$two_or_more_races_pct,
-                    dem$two_races_including_pct,
-                    dem$two_races_excluding_pct,
-                    
-                    dem$hispanic_or_latino_pct,
-                    
-                    dem$not_h_white_pct,
-                    dem$not_h_black_pct,
-                    dem$not_h_ai_an_pct,
-                    dem$not_h_asian_pct)
+                    'white_pct',
+                    'black_afam_pct',
+                    'am_ind_ak_ntv_pct',
+                    'asian_pct',
+                    'ntv_hw_pac_isl_pct',
+                    'some_other_race_pct',
+                    'two_or_more_races_pct',
+                    'two_races_including_pct',
+                    'two_races_excluding_pct',
+                    'hispanic_or_latino_pct',
+                    'not_h_white_pct',
+                    'not_h_black_pct',
+                    'not_h_ai_an_pct',
+                    'not_h_asian_pct'
+)
 
-#runs but maybe not doing anything?                    
+
 for (vars in percent_vars){
-  var_as_string = deparse(substitute(vars))
-  var_as_string = substring(var_as_string, 6)
-  dem[paste(var_as_string, "_trips")] = dem$trips*vars
+  dem[paste(vars, "_trips", sep = '')] = dem$trips*dem[paste(vars)]
 }
 
 #weight medians in the same way
-dem$med_household_income_xtrips = dem$med_household_income * dem$trips 
+dem$med_household_income_xtrips = dem$med_household_income * dem$trips
 
 dem$med_home_value_xtrips = dem$med_home_value * dem$trips
+
+
 
 
 #collapse demographics to beaches
 
 dem2= dem %>%
-  # might not collapse by year (remove year)
   group_by(Poi) %>%
   # indicate how to collapse each census var to beach
   # could be shortened with looping or functions
-  # for some reason outcome columns have census code names 
- 
+  # medians have a different total trips denominator.  
   summarise(total=sum(trips),
+            total_for_value = sum(trips_for_value, na.rm=TRUE),
+            total_for_income = sum(trips_for_income, na.rm=TRUE), 
             
             whitetripsbeach=sum(white_pct_trips),
             white_pct= whitetripsbeach/total,
@@ -208,7 +223,7 @@ dem2= dem %>%
             ntv_hw_pac_isl_pct= ntv_hw_pac_isl_tripsbeach/total,
             
             some_other_race_tripsbeach=sum(some_other_race_pct_trips),
-            some_other_race_pct= some_other_race_pct_tripsbeach/total,
+            some_other_race_pct= some_other_race_tripsbeach/total,
             
             two_or_more_races_tripsbeach=sum(two_or_more_races_pct_trips),
             two_or_more_races_pct= two_or_more_races_tripsbeach/total,
@@ -234,16 +249,20 @@ dem2= dem %>%
             not_h_asian_tripsbeach=sum(not_h_asian_pct_trips),
             not_h_asian_pct= not_h_asian_tripsbeach/total,
             
-            median_income_xtripsbeach=sum(med_household_income_xtrips),
-            med_household_income= median_income_xtripsbeach/total,
+            median_income_xtripsbeach=sum(med_household_income_xtrips, na.rm=TRUE),
+            med_household_income= median_income_xtripsbeach/total_for_income,
             
-            med_home_value_xtripsbeach=sum(med_home_value_xtrips),
-            med_home_value= med_home_value_xtripsbeach/total,
+            med_home_value_xtripsbeach=sum(med_home_value_xtrips, na.rm=TRUE),
+            med_home_value= med_home_value_xtripsbeach/total_for_value,
             
             
   )
-# !!!save result as beach demographic results
+
+# drop columns used for calculations 
+droplist = c('total_for_value', 'total_for_income')
+dem2 = dem2 %>% select(-one_of(droplist))
+
+# save result as beach demographic results
 save(dem2,file="beach_demographics.Rdata")
 
-#cut here to regression file 
 
