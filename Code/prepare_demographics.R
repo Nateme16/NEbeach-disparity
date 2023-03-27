@@ -65,7 +65,6 @@ varlabels = list('B01003_001' = 'tot_pop',
 varlist = names(varlabels)
 
 #iterate through states
-# throws thousands of errors but runs 
 dem_m=data.frame()
 for (state in statelist) {
 
@@ -193,7 +192,13 @@ dem$med_household_income_xtrips = dem$med_household_income * dem$trips
 
 dem$med_home_value_xtrips = dem$med_home_value * dem$trips
 
-
+# language for selecting 
+dem %>%
+  select(
+    med_home_value,
+    trips,
+    med_home_value_xtrips
+  )
 
 
 #collapse demographics to beaches
