@@ -24,6 +24,6 @@ census_changes = census %>%
   filter(GEOID_BLKGRP_20 != GEOID_BLKGRP_10
   )
 
-census_changes = census %>%
-  filter(OID_BLKGRP_20 != OID_BLKGRP_10
+census_changes_area = census %>%
+  filter(AREALAND_BLKGRP_20 != AREALAND_BLKGRP_10
   )
