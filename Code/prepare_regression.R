@@ -4,9 +4,10 @@ library(here)
 library(dplyr)
 library(tidyverse)
 library(car)
-library(betareg)
 library(lmtest)
 library(stargazer)
+library(AER)
+library(MASS)
 
 
 
@@ -29,6 +30,9 @@ demog = rename(demog, poi = Poi)
 wq_window=read.csv("bacteria_window.csv")
 
 data=merge(wq_window,demog,by=c("poi")) 
+
+# remove unsupported null types from df
+data[is.na(data) | data=="Inf"] = NA
 
 # important vars you might use 
 '
@@ -67,9 +71,19 @@ ggplot(data=data, aes(x=exceed100perc)) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of exceedance percents")
 
+#logged exceedences looks more normal 
+ggplot(data=data, aes(x=log(exceed100perc))) +
+  geom_histogram(fill="steelblue", color="black") +
+  ggtitle("Histogram of logged exceedance percents")
+
 ggplot(data=data, aes(x=cfu2)) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of cfus")
+
+#logged cfu also looks better
+ggplot(data=data, aes(x=log(cfu2))) +
+  geom_histogram(fill="steelblue", color="black") +
+  ggtitle("Histogram of logged cfus")
 
 ggplot(data=data, aes(x=white_pct)) +
   geom_histogram(fill="steelblue", color="black") +
@@ -81,7 +95,7 @@ ggplot(data=data, aes(x=n)) +
 
 #scatter exceedance and pct white
 ggplot(data=data, aes(x=exceed100perc, y=white_pct)) + 
-  geom_point()
+  geom_point(alpha = 0.1)
 
 ggplot(data=data, aes(x=exceed100perc, y=cfu2)) + 
   geom_point()
@@ -134,46 +148,45 @@ round(cor(data[c('white_pct',
 
 #regress wq on demographics
 # first some simple, unweighted linear regressions
-reg1=lm(exceed100perc~white_pct,data=data)
-summary(reg1)
+
+summary(lm(exceed100perc~white_pct,data=data))
 # significant race 
 
-reg2=lm(exceed100perc~white_pct + med_household_income,data=data)
-summary(reg2)
+summary(lm(exceed100perc~white_pct + med_household_income,data=data))
 # significant race
 
-reg3 = lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income,data=data)
-summary(reg3)
+summary(lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income,data=data))
 # significant hispanic latino
 
 reg4 = lm(exceed100perc~white_pct + black_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data)
 summary(reg4)
 # significant home value
+
+# pausing to check some lm assumptions
 vif(reg4)
 #but VIFs are a bit high?
+#check for heteroskedacity
+plot(reg4$fitted.values, reg4$residuals, xlab = "Fitted values", ylab = "Residuals")
+# it's definitely weird 
 
-reg5 = lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data)
-summary(reg5)
+summary(lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data))
 # significant home value?
 
-reg1cfu = lm(cfu2~white_pct,data=data)
-summary(reg1cfu)
+# cfu as outcome?
+summary(lm(cfu2~white_pct,data=data))
 # N.S.
 
-reg2cfu = lm(cfu2~white_pct + black_pct + hispanic_or_latino_pct + med_household_income,data=data)
-summary(reg2cfu)
+summary(lm(cfu2~white_pct + black_pct + hispanic_or_latino_pct + med_household_income,data=data))
 # significant income 
 
 
-#weighted
+# weighted linear regression
 
-reg1w <- lm(exceed100perc ~ white_pct, data = data, weights = total)
-summary(reg1w)
+summary(lm(exceed100perc ~ white_pct, data = data, weights = total))
 #significant race
 
-reg2w <- lm(exceed100perc ~ med_household_income, data = data, weights = total)
-summary(reg2w)
-# N.S.income 
+summary(lm(exceed100perc ~ med_household_income, data = data, weights = total))
+# N.S.
 
 reg3w = lm(exceed100perc~white_pct + black_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data, weights = total)
 summary(reg3w)
@@ -184,7 +197,7 @@ vif(reg3w)
 reg4w = (lm(exceed100perc~white_pct + black_pct + asian_pct + two_or_more_races_pct + ntv_hw_pac_isl_pct + hispanic_or_latino_pct + am_ind_ak_ntv_pct + med_household_income + med_home_value,data=data, weights = total))
 summary(reg4w)
 vif(reg4w)
-# wayyy too high VIFs (white is 50), probably not a valid model 
+# wayyy too high VIFs (white_pct is 50), probably not a valid model 
 
 reg5w = lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data, weights = total)
 summary(reg5w)
@@ -192,12 +205,47 @@ vif(reg5w)
 # sig white and hispanic/latino 
 # poor wq and pct hispanic/latino negatively correlated, interestingly 
 # vifs fine 
+# has weighting improved heteroskedacity issue? 
+plot(reg5w$fitted.values, reg5w$residuals, xlab = "Fitted values", ylab = "Residuals")
+# these are also weird looking
 
 
+# log - linear to make cfu more normal 
+# can't log-linear-ify exceedances (as-is) because there are zeroes
+
+reg1l=lm(log(cfu2)~white_pct,data=data)
+summary(reg1l)
+
+reg2l=lm(log(cfu2)~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data)
+summary(reg2l)
 
 
-#try other glms
-# log linear? 
 # random forest? 
-betareg1 = 'something'
+# Convert linear model to random forest model
+# no weights (yet?)
+reg5rf <- randomForest(exceed100perc ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value, data = data)
+print(reg5rf)
 
+#poisson?
+reg1p <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value, data = data, family = poisson)
+dispersiontest(reg1p,trafo=1)
+# seems overdispersed suggesting negbin is better, but let's try adding an offset 
+
+reg1po <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), data = data, family = poisson)
+dispersiontest(reg1po,trafo=1)
+#still overdispersed
+
+# negative binomial? 
+
+reg1bo <- glm.nb(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), 
+             data = data)
+summary(reg1bo)
+# home value only is sig
+
+# but let's add weights back in 
+reg1bow <- glm.nb(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), 
+                 data = data,
+                 weights = total )
+summary(reg1bow)
+# everything is supersig but "Warning while fitting theta: alternation limit reached" 
+# maybe didn't converge?
