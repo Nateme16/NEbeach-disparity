@@ -1,6 +1,8 @@
 #prepare a regression for wq=f(demographics)
 
 library(here)
+library(pscl)
+library(boot)
 library(dplyr)
 library(tidyverse)
 library(car)
@@ -8,7 +10,7 @@ library(lmtest)
 library(stargazer)
 library(AER)
 library(MASS)
-
+library(broom)
 
 
 
@@ -67,6 +69,10 @@ med_home_value
 head(data)
 summary(data)
 
+ggplot(data=data, aes(x=exceed100)) +
+  geom_histogram(fill="steelblue", color="black") +
+  ggtitle("Histogram of exceedance numbers")
+
 ggplot(data=data, aes(x=exceed100perc)) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of exceedance percents")
@@ -98,9 +104,19 @@ ggplot(data=data, aes(x=exceed100perc, y=white_pct)) +
   geom_point(alpha = 0.1)
 
 ggplot(data=data, aes(x=exceed100perc, y=cfu2)) + 
-  geom_point()
+  geom_point(alpha = 0.2)
+
+ggplot(data=data, aes(x=cfu2, y=exceed100perc)) + 
+  geom_point(alpha = 0.2)
+
+par(mfrow = c(1, 2))
+boxplot(data$cfu2)
+boxplot(data$exceed100perc)
 
 ggplot(data=data, aes(x=total, y=white_pct)) + 
+  geom_point(alpha = 0.1)
+
+ggplot(data=data, aes(x=black_pct, y=white_pct)) + 
   geom_point(alpha = 0.1)
 
 ggplot(data=data, aes(x=exceed100perc, y=n)) + 
@@ -109,8 +125,11 @@ ggplot(data=data, aes(x=exceed100perc, y=n)) +
 ggplot(data=data, aes(x=exceed100perc, y=n)) + 
   geom_point(alpha = 0.5)
 
+ggplot(data=data, aes(x=cfu2, y=n)) + 
+  geom_point(alpha = 0.1)
+
 ggplot(data=data, aes(x=exceed100perc, y=total)) + 
-  geom_point(alpha = 0.2)
+  geom_point(alpha = 0.1)
 
 
 ggplot(data = data, aes(x = exceed100perc, y = n)) +
@@ -125,6 +144,8 @@ ggplot(data = data, aes(x = exceed100perc, y = n)) +
 sapply(data, function(x) sum(is.na(x)))
 #none, though I feel like there should be some?
 
+# look at correlations 
+round(cor(data[c('exceed100perc', 'cfu2')]), 2)
 
 round(cor(data[c('white_pct',                    
                  'black_pct',   
@@ -172,7 +193,7 @@ plot(reg4$fitted.values, reg4$residuals, xlab = "Fitted values", ylab = "Residua
 summary(lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data))
 # significant home value?
 
-# cfu as outcome?
+# what about cfu as outcome?
 summary(lm(cfu2~white_pct,data=data))
 # N.S.
 
@@ -180,7 +201,54 @@ summary(lm(cfu2~white_pct + black_pct + hispanic_or_latino_pct + med_household_i
 # significant income 
 
 
+# how about if we log cfu 
+cfuregNoWeights = (lm(log(cfu2)~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data))
+# significant home value and hispanic/latino, this time positive
+
+#log cfu and add weights
+cfureg = (lm(log(cfu2)~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data, weights = total))
+summary(cfureg)
+# this is a good model 
+
+plot(cfureg$fitted.values, cfureg$residuals, xlab = "Fitted values", ylab = "Residuals")
+# looks homoskedastic 
+
+hist(cfureg$residuals, breaks = 30) 
+# nice resids
+
+#plot modeled vs actual 
+data_modcfu <- data.frame(Predicted = exp(predict(cfureg)),  # Create data for ggplot2
+                          Observed = data$cfu2)
+ggplot(data_modcfu,                                     # Draw plot using ggplot2 package
+       aes(x = Predicted,
+           y = Observed)) +
+  geom_point() +
+  geom_abline(intercept = 0,
+              slope = 1,
+              color = "red",
+              size = 0.5)
+#outliers appear to be heavily impacting this 
+#and weights too maybe 
+
+# more diagnostics 
+
+par(mfrow = c(2, 2))
+plot(cfureg)
+# QQ plot of residuals is sus 
+# and some points have extremely high leverage
+
+
+plot(cfuregNoWeights)
+# but unweighted QQ plot is better, so it could be the weights 
+
+
+
+
+
 # weighted linear regression
+# weights by total visitation 
+# commonly used to reduce heteroskedacity or downweight imprecise/ low quality data points
+# sensitive to outliers
 
 summary(lm(exceed100perc ~ white_pct, data = data, weights = total))
 #significant race
@@ -209,24 +277,36 @@ vif(reg5w)
 plot(reg5w$fitted.values, reg5w$residuals, xlab = "Fitted values", ylab = "Residuals")
 # these are also weird looking
 
+hist(reg5w$residuals, breaks = 30) 
+#weird residuals
 
-# log - linear to make cfu more normal 
-# can't log-linear-ify exceedances (as-is) because there are zeroes
+# more diagnostics 
 
-reg1l=lm(log(cfu2)~white_pct,data=data)
-summary(reg1l)
-
-reg2l=lm(log(cfu2)~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data)
-summary(reg2l)
-
+par(mfrow = c(2, 2))
+plot(reg5w)
 
 # random forest? 
 # Convert linear model to random forest model
-# no weights (yet?)
+# no weights (though weights are possible)
 reg5rf <- randomForest(exceed100perc ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value, data = data)
 print(reg5rf)
+varImpPlot(reg5rf)
+partialPlot(reg5rf, x.var = "hispanic_or_latino_pct", pred.data = 'exceed100perc')
+# ^ fix doesnt work 
 
-#poisson?
+
+# can't log-linear-ify exceedances (as-is) because there are zeroes
+# 
+
+
+
+# generalized alternatives to linear model 
+# may be better than log-transforming esp if have to deal w 0s
+# beta regression (for proportion/percent outcomes) doesn't allow 0s....
+
+#poisson-type as alternate to linear model? 
+# pct exceedences can be treated like a count, with the denominator as an offset 
+# this allows us to incorporate more information than just relying on a percent 
 reg1p <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value, data = data, family = poisson)
 dispersiontest(reg1p,trafo=1)
 # seems overdispersed suggesting negbin is better, but let's try adding an offset 
@@ -235,7 +315,7 @@ reg1po <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_inc
 dispersiontest(reg1po,trafo=1)
 #still overdispersed
 
-# negative binomial? 
+# negative binomial (a generalization of poisson?) 
 
 reg1bo <- glm.nb(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), 
              data = data)
@@ -247,5 +327,65 @@ reg1bow <- glm.nb(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household
                  data = data,
                  weights = total )
 summary(reg1bow)
-# everything is supersig but "Warning while fitting theta: alternation limit reached" 
+# everything is super significant but "Warning while fitting theta: alternation limit reached" 
 # maybe didn't converge?
+# neg bin may be challenging to use 
+# zero-inflation?
+
+# increase number of iterations to help convergence
+reg2bow <- glm.nb(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), 
+                  data = data,
+                  weights = total,
+                  control=glm.control(maxit=50))
+summary(reg2bow)
+# no errors this time, but coefficient z and p values are suspicious
+# to do: compare to poisson using LRT
+# exponentiate coeffs
+# "use the m1$resid command to obtain the residuals from our model to check other assumptions of the negative binomial model"
+
+
+# test otherwise identical Poisson model to see which is better
+regTestP <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), 
+                   data = data,
+                   family = "poisson",
+                   weights = total,
+                   control=glm.control(maxit=50))
+summary(regTestP)
+pchisq(2 * (logLik(reg2bow) - logLik(regTestP)), df = 1, lower.tail = FALSE)
+#what does this mean lol 
+
+hist(reg2bow$residuals, breaks = 30) 
+# not great, skewed 
+
+#plot modeled vs actual 
+data_modbow <- data.frame(Predicted = predict(reg2bow),  # Create data for ggplot2
+                       Observed = data$exceed100,
+                       Trips = data$total)
+ggplot(data_modbow,                                     # Draw plot using ggplot2 package
+       aes(x = Predicted,
+           y = Observed)) +
+  geom_point() +
+  geom_abline(intercept = 0,
+              slope = 1,
+              color = "red",
+              size = 0.5)
+#bad?
+# weights make this hard to interpret though
+
+# color points by total
+
+ggplot(data_modbow, aes(x = Predicted, y = Observed, color = Trips)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red", size = 0.5) +
+  scale_color_continuous(low = "yellow", high = "red")
+
+# more "important" beaches are modeled more poorly....?
+
+# trying zero-inflated negative binomial 
+
+regzbow <- zeroinfl(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,
+               data = data, dist = "negbin", 
+               weights = total, offset = log(n)
+               )
+summary(regzbow)
+# model seems to be mostly nans
