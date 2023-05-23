@@ -11,6 +11,8 @@ library(stargazer)
 library(AER)
 library(MASS)
 library(broom)
+library(randomForest)
+library(margins)
 
 
 
@@ -36,6 +38,18 @@ data=merge(wq_window,demog,by=c("poi"))
 # remove unsupported null types from df
 data[is.na(data) | data=="Inf"] = NA
 
+'
+
+
+  _____ ____    _     
+ | ____|  _ \  / \    
+ |  _| | | | |/ _ \   
+ | |___| |_| / ___ \  
+ |_____|____/_/   \_\ 
+                      
+  Exploratory Data Analysis                      
+
+'
 # important vars you might use 
 '
 poi    
@@ -167,107 +181,24 @@ round(cor(data[c('white_pct',
                  'med_home_value' )]), 2)
 
 
-#regress wq on demographics
-# first some simple, unweighted linear regressions
+'
+  _ _                                             _      _     
+ | (_)_ __   ___  __ _ _ __   _ __ ___   ___   __| | ___| |___ 
+ | | | `_ \ / _ \/ _` | `__| | `_ ` _ \ / _ \ / _` |/ _ \ / __|
+ | | | | | |  __/ (_| | |    | | | | | | (_) | (_| |  __/ \__ \
+ |_|_|_| |_|\___|\__,_|_|    |_| |_| |_|\___/ \__,_|\___|_|___/
+                                                   
 
-summary(lm(exceed100perc~white_pct,data=data))
-# significant race 
-
-summary(lm(exceed100perc~white_pct + med_household_income,data=data))
-# significant race
-
-summary(lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income,data=data))
-# significant hispanic latino
-
-reg4 = lm(exceed100perc~white_pct + black_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data)
-summary(reg4)
-# significant home value
-
-# pausing to check some lm assumptions
-vif(reg4)
-#but VIFs are a bit high?
-#check for heteroskedacity
-plot(reg4$fitted.values, reg4$residuals, xlab = "Fitted values", ylab = "Residuals")
-# it's definitely weird 
-
-summary(lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data))
-# significant home value?
-
-# what about cfu as outcome?
-summary(lm(cfu2~white_pct,data=data))
-# N.S.
-
-summary(lm(cfu2~white_pct + black_pct + hispanic_or_latino_pct + med_household_income,data=data))
-# significant income 
-
-
-# how about if we log cfu 
-cfuregNoWeights = (lm(log(cfu2)~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data))
-# significant home value and hispanic/latino, this time positive
-
-#log cfu and add weights
-cfureg = (lm(log(cfu2)~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data, weights = total))
-summary(cfureg)
-# this is a good model 
-
-plot(cfureg$fitted.values, cfureg$residuals, xlab = "Fitted values", ylab = "Residuals")
-# looks homoskedastic 
-
-hist(cfureg$residuals, breaks = 30) 
-# nice resids
-
-#plot modeled vs actual 
-data_modcfu <- data.frame(Predicted = exp(predict(cfureg)),  # Create data for ggplot2
-                          Observed = data$cfu2)
-ggplot(data_modcfu,                                     # Draw plot using ggplot2 package
-       aes(x = Predicted,
-           y = Observed)) +
-  geom_point() +
-  geom_abline(intercept = 0,
-              slope = 1,
-              color = "red",
-              size = 0.5)
-#outliers appear to be heavily impacting this 
-#and weights too maybe 
-
-# more diagnostics 
-
-par(mfrow = c(2, 2))
-plot(cfureg)
-# QQ plot of residuals is sus 
-# and some points have extremely high leverage
-
-
-plot(cfuregNoWeights)
-# but unweighted QQ plot is better, so it could be the weights 
-
-
-
-
+'
 
 # weighted linear regression
 # weights by total visitation 
 # commonly used to reduce heteroskedacity or downweight imprecise/ low quality data points
 # sensitive to outliers
 
-summary(lm(exceed100perc ~ white_pct, data = data, weights = total))
-#significant race
 
-summary(lm(exceed100perc ~ med_household_income, data = data, weights = total))
-# N.S.
-
-reg3w = lm(exceed100perc~white_pct + black_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data, weights = total)
-summary(reg3w)
-vif(reg3w)
-# significant white and hispanic/latino
-# concerning vifs 
-
-reg4w = (lm(exceed100perc~white_pct + black_pct + asian_pct + two_or_more_races_pct + ntv_hw_pac_isl_pct + hispanic_or_latino_pct + am_ind_ak_ntv_pct + med_household_income + med_home_value,data=data, weights = total))
-summary(reg4w)
-vif(reg4w)
-# wayyy too high VIFs (white_pct is 50), probably not a valid model 
-
-reg5w = lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data, weights = total)
+reg5 = lm(exceed100perc~white_pct + hispanic_or_latino_pct,data=data)
+reg5w = lm(exceed100perc~white_pct + hispanic_or_latino_pct ,data=data, weights = total)
 summary(reg5w)
 vif(reg5w)
 # sig white and hispanic/latino 
@@ -276,29 +207,64 @@ vif(reg5w)
 # has weighting improved heteroskedacity issue? 
 plot(reg5w$fitted.values, reg5w$residuals, xlab = "Fitted values", ylab = "Residuals")
 # these are also weird looking
-
 hist(reg5w$residuals, breaks = 30) 
 #weird residuals
-
 # more diagnostics 
-
 par(mfrow = c(2, 2))
 plot(reg5w)
-
-# random forest? 
-# Convert linear model to random forest model
-# no weights (though weights are possible)
-reg5rf <- randomForest(exceed100perc ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value, data = data)
-print(reg5rf)
-varImpPlot(reg5rf)
-partialPlot(reg5rf, x.var = "hispanic_or_latino_pct", pred.data = 'exceed100perc')
-# ^ fix doesnt work 
+par(mfrow = c(1, 1))
+extractAIC(reg5w)
+extractAIC(lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data, weights = total))
+extractAIC(lm(exceed100perc~white_pct + hispanic_or_latino_pct,data=data, weights = total))
 
 
-# can't log-linear-ify exceedances (as-is) because there are zeroes
-# 
+
+#log transforming exceedences
+reg5wlog = lm(log(exceed100perc+0.01)~white_pct + hispanic_or_latino_pct,data=data, weights = total)
+summary(reg5wlog)
+summary(reg5w)
+hist(reg5w$residuals, breaks = 30)
+hist(reg5wlog$residuals, breaks = 30)
+par(mfrow = c(2, 2))
+plot(reg5w)
+plot(reg5wlog)
 
 
+#loglog
+# not very good 
+regll = lm(log(exceed100perc+0.01)~log(white_pct) + log(black_pct) + log(hispanic_or_latino_pct),data=data)
+summary(regll)
+hist(regll$residuals, breaks = 30)
+plot(regll)
+
+
+
+# cfu 
+regc = lm(log(cfu2)~white_pct + hispanic_or_latino_pct,data=data, weights = total)
+summary(regc)
+regcNoLog = lm(cfu2~white_pct + hispanic_or_latino_pct,data=data, weights = total)
+summary(regcNoLog)
+# better residuals with logged version 
+hist(regc$residuals, breaks = 30) 
+hist(regcNoLog$residuals, breaks = 30)
+plot(regc)
+
+
+
+#stargazer output 
+stargazer(reg5w,reg5wlog, regc, header=FALSE,title="My Nice Regression Table", 
+          type='text',digits=2)
+
+
+'
+              _                            _       
+  _ __   ___ (_)___ ___  ___  _ __     ___| |_ ___ 
+ | `_ \ / _ \| / __/ __|/ _ \| `_ \   / _ \ __/ __|
+ | |_) | (_) | \__ \__ \ (_) | | | | |  __/ || (__ 
+ | .__/ \___/|_|___/___/\___/|_| |_|  \___|\__\___|
+ |_|                                               
+
+'
 
 # generalized alternatives to linear model 
 # may be better than log-transforming esp if have to deal w 0s
@@ -308,12 +274,20 @@ partialPlot(reg5rf, x.var = "hispanic_or_latino_pct", pred.data = 'exceed100perc
 # pct exceedences can be treated like a count, with the denominator as an offset 
 # this allows us to incorporate more information than just relying on a percent 
 reg1p <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value, data = data, family = poisson)
+summary(reg1p)
 dispersiontest(reg1p,trafo=1)
 # seems overdispersed suggesting negbin is better, but let's try adding an offset 
 
 reg1po <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), data = data, family = poisson)
+summary(reg1po)
 dispersiontest(reg1po,trafo=1)
 #still overdispersed
+
+reg1pow <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), data = data, weights = total, family = poisson)
+summary(reg1pow)
+
+reg1pw <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value, data = data, weights = total, family = poisson)
+summary(reg1pw)
 
 # negative binomial (a generalization of poisson?) 
 
@@ -381,11 +355,32 @@ ggplot(data_modbow, aes(x = Predicted, y = Observed, color = Trips)) +
 
 # more "important" beaches are modeled more poorly....?
 
-# trying zero-inflated negative binomial 
 
-regzbow <- zeroinfl(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,
-               data = data, dist = "negbin", 
-               weights = total, offset = log(n)
-               )
-summary(regzbow)
-# model seems to be mostly nans
+# do a hurdle 
+# add offset
+h1 = hurdle(exceed100 ~ white_pct, 
+       #x = ~1, z = ~1, 
+       data = data, link = "logit",
+       dist = "poisson", method = "BFGS", trace = FALSE,
+       maxit = 50000, na.action = na.omit)
+summary(h1)
+margins(h1)
+margins_summary(h1)
+
+# illness rates 
+'
+ _ _ _                               
+(_) | |_ __   ___  ___ ___  ___  ___ 
+| | | | `_ \ / _ \/ __/ __|/ _ \/ __|
+| | | | | | |  __/\__ \__ \  __/\__ \
+|_|_|_|_| |_|\___||___/___/\___||___/
+  
+'
+
+
+#general shape of rate function 
+# (from Dofour 1984)
+ggplot(data.frame(x=c(0, 1000)), aes(x)) + 
+  labs(x = "CFU", y = "illnesses per 1000 swimmers") + 
+  stat_function(fun=function(x) -11.74 + (9.397*log(x)))
+
