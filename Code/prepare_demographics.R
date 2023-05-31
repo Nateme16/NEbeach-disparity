@@ -145,7 +145,7 @@ save(dem_m,file="block_demographics_bg_Erin.Rdata")
 dem=dem_m
 
 # drop the columns named after census codes (e.g. B0100340)
-dem = dem %>% select(-one_of(varlist))
+dem = dem %>% dplyr::select(-one_of(varlist))
 
 #dem=dem[dem$trips>0,]
 
@@ -194,7 +194,7 @@ dem$med_home_value_xtrips = dem$med_home_value * dem$trips
 
 # language for selecting 
 dem %>%
-  select(
+  dplyr::select(
     med_home_value,
     trips,
     med_home_value_xtrips
@@ -213,46 +213,46 @@ dem2= dem %>%
             total_for_income = sum(trips_for_income, na.rm=TRUE), 
             
             whitetripsbeach=sum(white_pct_trips),
-            white_pct= whitetripsbeach/total,
+            white_pct= (whitetripsbeach/total)*100,
             
             blacktripsbeach=sum(black_afam_pct_trips),
-            black_pct= blacktripsbeach/total,
+            black_pct= (blacktripsbeach/total)*100,
             
             am_ind_ak_ntv_tripsbeach=sum(am_ind_ak_ntv_pct_trips),
-            am_ind_ak_ntv_pct= am_ind_ak_ntv_tripsbeach/total,
+            am_ind_ak_ntv_pct= (am_ind_ak_ntv_tripsbeach/total)*100,
             
             asiantripsbeach=sum(asian_pct_trips),
-            asian_pct= asiantripsbeach/total,
+            asian_pct= (asiantripsbeach/total)*100,
             
             ntv_hw_pac_isl_tripsbeach=sum(ntv_hw_pac_isl_pct_trips),
-            ntv_hw_pac_isl_pct= ntv_hw_pac_isl_tripsbeach/total,
+            ntv_hw_pac_isl_pct= (ntv_hw_pac_isl_tripsbeach/total)*100,
             
             some_other_race_tripsbeach=sum(some_other_race_pct_trips),
-            some_other_race_pct= some_other_race_tripsbeach/total,
+            some_other_race_pct= (some_other_race_tripsbeach/total)*100,
             
             two_or_more_races_tripsbeach=sum(two_or_more_races_pct_trips),
-            two_or_more_races_pct= two_or_more_races_tripsbeach/total,
+            two_or_more_races_pct= (two_or_more_races_tripsbeach/total)*100,
             
             two_races_including_tripsbeach=sum(two_races_including_pct_trips),
-            two_races_including_pct= two_races_including_tripsbeach/total,
+            two_races_including_pct= (two_races_including_tripsbeach/total)*100,
             
             two_races_excluding_tripsbeach=sum(two_races_excluding_pct_trips),
-            two_races_excluding_pct= two_races_excluding_tripsbeach/total,
+            two_races_excluding_pct= (two_races_excluding_tripsbeach/total)*100,
             
             hispanic_or_latino_tripsbeach=sum(hispanic_or_latino_pct_trips),
-            hispanic_or_latino_pct= hispanic_or_latino_tripsbeach/total,
+            hispanic_or_latino_pct= (hispanic_or_latino_tripsbeach/total)*100,
             
             not_h_white_tripsbeach=sum(not_h_white_pct_trips),
-            not_h_white_pct= not_h_white_tripsbeach/total,
+            not_h_white_pct= (not_h_white_tripsbeach/total)*100,
             
             not_h_black_tripsbeach=sum(not_h_black_pct_trips),
-            not_h_black_pct= not_h_black_tripsbeach/total,
+            not_h_black_pct= (not_h_black_tripsbeach/total)*100,
             
             not_h_ai_an_tripsbeach=sum(not_h_ai_an_pct_trips),
-            not_h_ai_an_pct= not_h_ai_an_tripsbeach/total,
+            not_h_ai_an_pct= (not_h_ai_an_tripsbeach/total)*100,
             
             not_h_asian_tripsbeach=sum(not_h_asian_pct_trips),
-            not_h_asian_pct= not_h_asian_tripsbeach/total,
+            not_h_asian_pct= (not_h_asian_tripsbeach/total)*100,
             
             median_income_xtripsbeach=sum(med_household_income_xtrips, na.rm=TRUE),
             med_household_income= median_income_xtripsbeach/total_for_income,
@@ -265,7 +265,7 @@ dem2= dem %>%
 
 # drop columns used for calculations 
 droplist = c('total_for_value', 'total_for_income')
-dem2 = dem2 %>% select(-one_of(droplist))
+dem2 = dem2 %>% dplyr::select(-one_of(droplist))
 
 # save result as beach demographic results
 save(dem2,file="beach_demographics.Rdata")

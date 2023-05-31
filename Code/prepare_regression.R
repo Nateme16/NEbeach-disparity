@@ -99,9 +99,17 @@ ggplot(data=data, aes(x=log(exceed100perc))) +
 ggplot(data=data, aes(x=cfu2)) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of cfus")
+ggplot(data=data, aes(x=cfuGeomMean)) +
+  geom_histogram(fill="steelblue", color="black") +
+  ggtitle("Histogram of cfus")
+
 
 #logged cfu also looks better
 ggplot(data=data, aes(x=log(cfu2))) +
+  geom_histogram(fill="steelblue", color="black") +
+  ggtitle("Histogram of logged cfus")
+
+ggplot(data=data, aes(x=log(cfuGeomMean))) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of logged cfus")
 
@@ -122,6 +130,11 @@ ggplot(data=data, aes(x=exceed100perc, y=cfu2)) +
 
 ggplot(data=data, aes(x=cfu2, y=exceed100perc)) + 
   geom_point(alpha = 0.2)
+
+
+ggplot(data=data, aes(x=cfu2, y=cfuGeomMean)) + 
+  geom_point(alpha = 0.2)
+
 
 par(mfrow = c(1, 2))
 boxplot(data$cfu2)
@@ -244,6 +257,25 @@ regc = lm(log(cfu2)~white_pct + hispanic_or_latino_pct,data=data, weights = tota
 summary(regc)
 regcNoLog = lm(cfu2~white_pct + hispanic_or_latino_pct,data=data, weights = total)
 summary(regcNoLog)
+
+regcg = lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct,data=data, weights = total)
+summary(regcg)
+regcgNoLog = lm(cfuGeomMean~white_pct + hispanic_or_latino_pct,data=data, weights = total)
+summary(regcgNoLog)
+
+regcg_log10 = lm(log10(cfuGeomMean)~white_pct + hispanic_or_latino_pct,data=data, weights = total)
+summary(regcg_log10)
+
+
+# no weights cfu 
+regcgnw = lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct,data=data)
+summary(regcgnw)
+
+
+par(mfrow = c(2, 2))
+plot(regcg)
+plot(regcgNoLog)
+
 # better residuals with logged version 
 hist(regc$residuals, breaks = 30) 
 hist(regcNoLog$residuals, breaks = 30)
@@ -252,7 +284,7 @@ plot(regc)
 
 
 #stargazer output 
-stargazer(reg5w,reg5wlog, regc, header=FALSE,title="My Nice Regression Table", 
+stargazer(reg5w,reg5wlog, regcg, header=FALSE,title="My Nice Regression Table", 
           type='text',digits=2)
 
 
@@ -381,6 +413,6 @@ margins_summary(h1)
 #general shape of rate function 
 # (from Dofour 1984)
 ggplot(data.frame(x=c(0, 1000)), aes(x)) + 
-  labs(x = "CFU", y = "illnesses per 1000 swimmers") + 
-  stat_function(fun=function(x) -11.74 + (9.397*log(x)))
+  labs(x = "mean enterococci CFU", y = "illnesses per 1000 swimmers") + 
+  stat_function(fun=function(x) 0.20 + (12.17*log10(x)))
 
