@@ -38,9 +38,16 @@ data=merge(wq_window,demog,by=c("poi"))
 # remove unsupported null types from df
 data[is.na(data) | data=="Inf"] = NA
 
+#make median household income in thousands so coefficients 
+# are easier to interperet 
+
+data$med_household_income_k = data$med_household_income / 1000
+
+#make pct exceedences out of 100 
+
+data$exceed100perc_x100 = data$exceed100perc * 100
+
 '
-
-
   _____ ____    _     
  | ____|  _ \  / \    
  |  _| | | | |/ _ \   
@@ -87,7 +94,7 @@ ggplot(data=data, aes(x=exceed100)) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of exceedance numbers")
 
-ggplot(data=data, aes(x=exceed100perc)) +
+ggplot(data=data, aes(x=exceed100perc_x100)) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of exceedance percents")
 
@@ -210,8 +217,8 @@ round(cor(data[c('white_pct',
 # sensitive to outliers
 
 
-reg5 = lm(exceed100perc~white_pct + hispanic_or_latino_pct,data=data)
-reg5w = lm(exceed100perc~white_pct + hispanic_or_latino_pct ,data=data, weights = total)
+reg5 = lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income,data=data)
+reg5w = lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data)
 summary(reg5w)
 vif(reg5w)
 # sig white and hispanic/latino 
@@ -233,7 +240,7 @@ extractAIC(lm(exceed100perc~white_pct + hispanic_or_latino_pct,data=data, weight
 
 
 #log transforming exceedences
-reg5wlog = lm(log(exceed100perc+0.01)~white_pct + hispanic_or_latino_pct,data=data, weights = total)
+reg5wlog = lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total)
 summary(reg5wlog)
 summary(reg5w)
 hist(reg5w$residuals, breaks = 30)
@@ -243,14 +250,6 @@ plot(reg5w)
 plot(reg5wlog)
 
 
-#loglog
-# not very good 
-regll = lm(log(exceed100perc+0.01)~log(white_pct) + log(black_pct) + log(hispanic_or_latino_pct),data=data)
-summary(regll)
-hist(regll$residuals, breaks = 30)
-plot(regll)
-
-
 
 # cfu 
 regc = lm(log(cfu2)~white_pct + hispanic_or_latino_pct,data=data, weights = total)
@@ -258,34 +257,53 @@ summary(regc)
 regcNoLog = lm(cfu2~white_pct + hispanic_or_latino_pct,data=data, weights = total)
 summary(regcNoLog)
 
-regcg = lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct,data=data, weights = total)
+regcg = lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total)
 summary(regcg)
-regcgNoLog = lm(cfuGeomMean~white_pct + hispanic_or_latino_pct,data=data, weights = total)
-summary(regcgNoLog)
 
-regcg_log10 = lm(log10(cfuGeomMean)~white_pct + hispanic_or_latino_pct,data=data, weights = total)
+regcg_log10 = lm(log10(cfuGeomMean)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total)
 summary(regcg_log10)
 
-
-# no weights cfu 
-regcgnw = lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct,data=data)
-summary(regcgnw)
 
 
 par(mfrow = c(2, 2))
 plot(regcg)
-plot(regcgNoLog)
 
-# better residuals with logged version 
-hist(regc$residuals, breaks = 30) 
-hist(regcNoLog$residuals, breaks = 30)
-plot(regc)
 
 
 
 #stargazer output 
+# add components to model objects 
+reg5w$AIC = AIC(reg5w)
+reg5wlog$AIC = AIC(reg5wlog)
+regcg$AIC = AIC(reg5wlog)
 stargazer(reg5w,reg5wlog, regcg, header=FALSE,title="My Nice Regression Table", 
-          type='text',digits=2)
+          type='text',
+          keep.stat = c("n", "rsq", "adj.rsq", "ll", "f", "ser", "aic"),
+          #keep.stat = c("all"),
+          digits=3)
+
+# get interpretable marginal effects for log transformed models 
+margins(regcg)
+margins(reg5wlog)
+
+
+# To calculate the Marginal Effect at the Mean (MEM) we have to obtain the mean values for each variable
+
+data_means_list = lapply(data,mean,na.rm=T)
+margins(regcg,at = mean(data$white_pct))
+margins(reg5wlog,at = data_means_list)
+
+# predictions 
+#define new observation
+newdata1 = data.frame(white_pct=87, hispanic_or_latino_pct=5, med_household_income_k = 50)
+newdata2 = data.frame(white_pct=77, hispanic_or_latino_pct=5, med_household_income_k = 50)
+#use model to predict points value
+morewhite = exp(predict(reg5wlog, newdata1))
+lesswhite = exp(predict(reg5wlog, newdata2))
+morewhite - lesswhite
+
+
+
 
 
 '
@@ -416,3 +434,17 @@ ggplot(data.frame(x=c(0, 1000)), aes(x)) +
   labs(x = "mean enterococci CFU", y = "illnesses per 1000 swimmers") + 
   stat_function(fun=function(x) 0.20 + (12.17*log10(x)))
 
+# function to put together our fitted cfu regression and rate function
+combineCfuRateEqs <- function(const, coeff1, coeff2, coeff3){
+  print(c("R = ", 0.20 + (12.17*const), " + ", coeff1*12.17, "*x1 + ", coeff2*12.17, "*x2 + ", coeff3*12.17 ))
+}
+combineCfuRateEqs(2.68, -0.02, -0.0059, -0.0019)
+
+# define function to quickly turn CFUs into rates 
+makeRate <- function(cfu){
+  0.20 + (12.17*log10(cfu))
+}
+
+rate_per1k_white = makeRate(weighted.mean(data$cfuGeomMean, data$white_pct))
+rate_per1k_black = makeRate(weighted.mean(data$cfuGeomMean, data$black_pct))
+rate_per1k_hispanic = makeRate(weighted.mean(data$cfuGeomMean, data$hispanic_or_latino_pct))
