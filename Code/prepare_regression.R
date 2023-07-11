@@ -18,14 +18,14 @@ library(margins)
 
 rm(list=ls()) #clear all
 
-####Create POI summary info for all months together####
+####Create Airsage beaches POI summary info for all months together####
 
 #build path to data files sensitive to usernames in OneDrive link
 wd= paste("C:/Users/",Sys.getenv("USERNAME"),"/Environmental Protection Agency (EPA)/ACESD Social Science Team - General/Research Projects/Beach research STRAP4/New England beach cell data/NEbeach-disparity/data", sep = "")
 
 setwd(wd)
 
-#bring in beach demographics cal it dem3 if you dont edit the rest of this
+#bring in beach demographics
 demog = get(load("beach_demographics.Rdata"))
 #rename Poi to poi so it merges
 demog = rename(demog, poi = Poi)
@@ -35,16 +35,14 @@ wq_window=read.csv("bacteria_window.csv")
 
 data=merge(wq_window,demog,by=c("poi")) 
 
-# remove unsupported null types from df
+# remove unsupported null types
 data[is.na(data) | data=="Inf"] = NA
 
 #make median household income in thousands so coefficients 
-# are easier to interperet 
-
+# are easier to interpret 
 data$med_household_income_k = data$med_household_income / 1000
 
-#make pct exceedences out of 100 
-
+#make pct exceedances out of 100 
 data$exceed100perc_x100 = data$exceed100perc * 100
 
 '
@@ -103,19 +101,11 @@ ggplot(data=data, aes(x=log(exceed100perc))) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of logged exceedance percents")
 
-ggplot(data=data, aes(x=cfu2)) +
-  geom_histogram(fill="steelblue", color="black") +
-  ggtitle("Histogram of cfus")
 ggplot(data=data, aes(x=cfuGeomMean)) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of cfus")
 
-
 #logged cfu also looks better
-ggplot(data=data, aes(x=log(cfu2))) +
-  geom_histogram(fill="steelblue", color="black") +
-  ggtitle("Histogram of logged cfus")
-
 ggplot(data=data, aes(x=log(cfuGeomMean))) +
   geom_histogram(fill="steelblue", color="black") +
   ggtitle("Histogram of logged cfus")
@@ -138,10 +128,8 @@ ggplot(data=data, aes(x=exceed100perc, y=cfu2)) +
 ggplot(data=data, aes(x=cfu2, y=exceed100perc)) + 
   geom_point(alpha = 0.2)
 
-
 ggplot(data=data, aes(x=cfu2, y=cfuGeomMean)) + 
   geom_point(alpha = 0.2)
-
 
 par(mfrow = c(1, 2))
 boxplot(data$cfu2)
@@ -176,7 +164,7 @@ ggplot(data = data, aes(x = exceed100perc, y = n)) +
 
 # look for nulls 
 sapply(data, function(x) sum(is.na(x)))
-#none, though I feel like there should be some?
+#no nulls
 
 # look at correlations 
 round(cor(data[c('exceed100perc', 'cfu2')]), 2)
@@ -217,37 +205,34 @@ round(cor(data[c('white_pct',
 # sensitive to outliers
 
 
-reg5 = lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income,data=data)
-reg5w = lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data)
-summary(reg5w)
-vif(reg5w)
+reg_l = lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income,data=data)
+reg_lw = lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data)
+summary(reg_lw)
+vif(reg_lw)
 # sig white and hispanic/latino 
 # poor wq and pct hispanic/latino negatively correlated, interestingly 
 # vifs fine 
 # has weighting improved heteroskedacity issue? 
-plot(reg5w$fitted.values, reg5w$residuals, xlab = "Fitted values", ylab = "Residuals")
+plot(reg_lw$fitted.values, reg5w$residuals, xlab = "Fitted values", ylab = "Residuals")
 # these are also weird looking
-hist(reg5w$residuals, breaks = 30) 
+hist(reg_lw$residuals, breaks = 30) 
 #weird residuals
 # more diagnostics 
 par(mfrow = c(2, 2))
-plot(reg5w)
+plot(reg_lw)
 par(mfrow = c(1, 1))
-extractAIC(reg5w)
+extractAIC(reg_lw)
 extractAIC(lm(exceed100perc~white_pct + hispanic_or_latino_pct + med_household_income + med_home_value,data=data, weights = total))
 extractAIC(lm(exceed100perc~white_pct + hispanic_or_latino_pct,data=data, weights = total))
 
 
 
 #log transforming exceedences
-reg5wlog = lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total)
-summary(reg5wlog)
-summary(reg5w)
-hist(reg5w$residuals, breaks = 30)
-hist(reg5wlog$residuals, breaks = 30)
+reg_lwlog = lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total)
+summary(reg_lwlog)
+hist(reg_lwlog$residuals, breaks = 30)
 par(mfrow = c(2, 2))
-plot(reg5w)
-plot(reg5wlog)
+plot(reg_lwlog)
 
 
 
@@ -273,10 +258,10 @@ plot(regcg)
 
 #stargazer output 
 # add components to model objects 
-reg5w$AIC = AIC(reg5w)
-reg5wlog$AIC = AIC(reg5wlog)
+reg_lw$AIC = AIC(reg5w)
+reg_lwlog$AIC = AIC(reg5wlog)
 regcg$AIC = AIC(reg5wlog)
-stargazer(reg5w,reg5wlog, regcg, header=FALSE,title="My Nice Regression Table", 
+stargazer(reg_lw,reg_lwlog, regcg, header=FALSE,title="My Nice Regression Table", 
           type='text',
           keep.stat = c("n", "rsq", "adj.rsq", "ll", "f", "ser", "aic"),
           #keep.stat = c("all"),
@@ -284,140 +269,26 @@ stargazer(reg5w,reg5wlog, regcg, header=FALSE,title="My Nice Regression Table",
 
 # get interpretable marginal effects for log transformed models 
 margins(regcg)
-margins(reg5wlog)
+margins(reg_lwlog)
 
 
 # To calculate the Marginal Effect at the Mean (MEM) we have to obtain the mean values for each variable
 
 data_means_list = lapply(data,mean,na.rm=T)
 margins(regcg,at = mean(data$white_pct))
-margins(reg5wlog,at = data_means_list)
+margins(reg_lwlog,at = data_means_list)
 
 # predictions 
 #define new observation
 newdata1 = data.frame(white_pct=87, hispanic_or_latino_pct=5, med_household_income_k = 50)
 newdata2 = data.frame(white_pct=77, hispanic_or_latino_pct=5, med_household_income_k = 50)
 #use model to predict points value
-morewhite = exp(predict(reg5wlog, newdata1))
-lesswhite = exp(predict(reg5wlog, newdata2))
+morewhite = exp(predict(reg_lwlog, newdata1))
+lesswhite = exp(predict(reg_lwlog, newdata2))
 morewhite - lesswhite
 
 
 
-
-
-'
-              _                            _       
-  _ __   ___ (_)___ ___  ___  _ __     ___| |_ ___ 
- | `_ \ / _ \| / __/ __|/ _ \| `_ \   / _ \ __/ __|
- | |_) | (_) | \__ \__ \ (_) | | | | |  __/ || (__ 
- | .__/ \___/|_|___/___/\___/|_| |_|  \___|\__\___|
- |_|                                               
-
-'
-
-# generalized alternatives to linear model 
-# may be better than log-transforming esp if have to deal w 0s
-# beta regression (for proportion/percent outcomes) doesn't allow 0s....
-
-#poisson-type as alternate to linear model? 
-# pct exceedences can be treated like a count, with the denominator as an offset 
-# this allows us to incorporate more information than just relying on a percent 
-reg1p <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value, data = data, family = poisson)
-summary(reg1p)
-dispersiontest(reg1p,trafo=1)
-# seems overdispersed suggesting negbin is better, but let's try adding an offset 
-
-reg1po <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), data = data, family = poisson)
-summary(reg1po)
-dispersiontest(reg1po,trafo=1)
-#still overdispersed
-
-reg1pow <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), data = data, weights = total, family = poisson)
-summary(reg1pow)
-
-reg1pw <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value, data = data, weights = total, family = poisson)
-summary(reg1pw)
-
-# negative binomial (a generalization of poisson?) 
-
-reg1bo <- glm.nb(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), 
-             data = data)
-summary(reg1bo)
-# home value only is sig
-
-# but let's add weights back in 
-reg1bow <- glm.nb(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), 
-                 data = data,
-                 weights = total )
-summary(reg1bow)
-# everything is super significant but "Warning while fitting theta: alternation limit reached" 
-# maybe didn't converge?
-# neg bin may be challenging to use 
-# zero-inflation?
-
-# increase number of iterations to help convergence
-reg2bow <- glm.nb(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), 
-                  data = data,
-                  weights = total,
-                  control=glm.control(maxit=50))
-summary(reg2bow)
-# no errors this time, but coefficient z and p values are suspicious
-# to do: compare to poisson using LRT
-# exponentiate coeffs
-# "use the m1$resid command to obtain the residuals from our model to check other assumptions of the negative binomial model"
-
-
-# test otherwise identical Poisson model to see which is better
-regTestP <- glm(exceed100 ~ white_pct + hispanic_or_latino_pct + med_household_income + med_home_value + offset(log(n)), 
-                   data = data,
-                   family = "poisson",
-                   weights = total,
-                   control=glm.control(maxit=50))
-summary(regTestP)
-pchisq(2 * (logLik(reg2bow) - logLik(regTestP)), df = 1, lower.tail = FALSE)
-#what does this mean lol 
-
-hist(reg2bow$residuals, breaks = 30) 
-# not great, skewed 
-
-#plot modeled vs actual 
-data_modbow <- data.frame(Predicted = predict(reg2bow),  # Create data for ggplot2
-                       Observed = data$exceed100,
-                       Trips = data$total)
-ggplot(data_modbow,                                     # Draw plot using ggplot2 package
-       aes(x = Predicted,
-           y = Observed)) +
-  geom_point() +
-  geom_abline(intercept = 0,
-              slope = 1,
-              color = "red",
-              size = 0.5)
-#bad?
-# weights make this hard to interpret though
-
-# color points by total
-
-ggplot(data_modbow, aes(x = Predicted, y = Observed, color = Trips)) +
-  geom_point() +
-  geom_abline(intercept = 0, slope = 1, color = "red", size = 0.5) +
-  scale_color_continuous(low = "yellow", high = "red")
-
-# more "important" beaches are modeled more poorly....?
-
-
-# do a hurdle 
-# add offset
-h1 = hurdle(exceed100 ~ white_pct, 
-       #x = ~1, z = ~1, 
-       data = data, link = "logit",
-       dist = "poisson", method = "BFGS", trace = FALSE,
-       maxit = 50000, na.action = na.omit)
-summary(h1)
-margins(h1)
-margins_summary(h1)
-
-# illness rates 
 '
  _ _ _                               
 (_) | |_ __   ___  ___ ___  ___  ___ 
@@ -448,3 +319,39 @@ makeRate <- function(cfu){
 rate_per1k_white = makeRate(weighted.mean(data$cfuGeomMean, data$white_pct))
 rate_per1k_black = makeRate(weighted.mean(data$cfuGeomMean, data$black_pct))
 rate_per1k_hispanic = makeRate(weighted.mean(data$cfuGeomMean, data$hispanic_or_latino_pct))
+
+
+
+
+
+
+## weight experiments 
+
+# make new total variable that is on a smaller scale (out of 1)
+
+data$total_rescale = data$total / 14980573
+
+
+# run regs with this total as weight rather than actual total 
+
+
+
+
+
+
+#regular 
+reg5wlog = lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total)
+summary(reg5wlog)
+#rescaled 
+reg5wlog_rescaledw = lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total_rescale)
+summary(reg5wlog_rescaledw)
+
+
+
+#regular
+reg5w = lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data)
+summary(reg5w)
+#rescaled
+reg5w_rescaledw = lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total_rescale,data=data)
+summary(reg5w_rescaledw)
+
