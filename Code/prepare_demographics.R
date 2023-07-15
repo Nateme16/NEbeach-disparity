@@ -269,5 +269,5 @@ dem2 = dem2 %>% dplyr::select(-one_of(droplist))
 
 # save result as beach demographic results
 save(dem2,file="beach_demographics.Rdata")
-
+write.csv(dem2, "beach_demographics.csv")
 
