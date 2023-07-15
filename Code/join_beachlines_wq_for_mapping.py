@@ -31,7 +31,7 @@ workingDirectory = r'C:\Users\EBURMA01\Environmental Protection Agency (EPA)\ACE
 dataFolder = r'C:\Users\EBURMA01\Environmental Protection Agency (EPA)\ACESD Social Science Team - General\Research Projects\Beach research STRAP4\New England beach cell data\NEbeach-disparity\data'
 
 
-# Set the name of the arcPy workspace, whether new or old 
+# Set the name of the arcPy workspace
 workspacePath = workingDirectory
 workspaceName = 'beachEJ.gdb'
 # set gdb workspace
@@ -51,6 +51,11 @@ arcpy.management.AddJoin('airSageLayer', 'Unique_ID',
                          'wqTable', 'poi',
                          )
 # turn back into fc
+arcpy.env.overwriteOutput = True
 arcpy.CopyFeatures_management('airSageLayer', 'airSageWindowJoin')
+
+# make a point (rather than polygon) version -- better for some kinds of visualizations 
+
+arcpy.management.FeatureToPoint('airSageWindowJoin', 'airSageWindowJoin_pt')
 
 
