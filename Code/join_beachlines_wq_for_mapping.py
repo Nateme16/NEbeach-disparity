@@ -44,12 +44,15 @@ wqPath = r"C:\Users\EBURMA01\Environmental Protection Agency (EPA)\ACESD Social 
 arcpy.management.MakeTableView(wqPath, 'wqTable')
 
 
-# fc must be layer
+# airsage fc must be layer
 arcpy.MakeFeatureLayer_management('airSage', 'airSageLayer')
                                
 arcpy.management.AddJoin('airSageLayer', 'Unique_ID',
                          'wqTable', 'poi',
                          )
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! join in visitation info too 
+#"beach_demographics.csv" maybe make this into a table view earlier?
+
 # turn back into fc
 arcpy.env.overwriteOutput = True
 arcpy.CopyFeatures_management('airSageLayer', 'airSageWindowJoin')
