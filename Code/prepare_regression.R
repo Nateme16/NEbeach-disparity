@@ -334,11 +334,6 @@ data$total_rescale = data$total / 14980573
 
 # run regs with this total as weight rather than actual total 
 
-
-
-
-
-
 #regular 
 reg5wlog = lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total)
 summary(reg5wlog)
