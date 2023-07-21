@@ -325,28 +325,59 @@ rate_per1k_hispanic = makeRate(weighted.mean(data$cfuGeomMean, data$hispanic_or_
 
 
 
-## weight experiments 
-
-# make new total variable that is on a smaller scale (out of 1)
-
-data$total_rescale = data$total / 14980573
-
-
-# run regs with this total as weight rather than actual total 
-
-#regular 
-reg5wlog = lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total)
-summary(reg5wlog)
-#rescaled 
-reg5wlog_rescaledw = lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total_rescale)
-summary(reg5wlog_rescaledw)
 
 
 
-#regular
-reg5w = lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data)
-summary(reg5w)
-#rescaled
-reg5w_rescaledw = lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total_rescale,data=data)
-summary(reg5w_rescaledw)
+
+
+
+## robustness tests 
+# high-visitation beaches may be misclassifying non-visitors as visitors 
+
+# excluding 1 largest beach 
+data_subset1 = subset(data, total < 14500000)
+# excluding 4 largest beaches 
+data_subset2 = subset(data, total < 9000000)
+# excluding 7 largest beaches
+data_subset3 = subset(data, total < 8000000)
+# excluding top 10% largest beaches 
+data_subset4 = subset(data, total < 1556797.54)
+# excluding top 25% largest beaches 
+data_subset5 = subset(data, total < 682699)
+
+
+
+# run regressions to see if still significant 
+
+# unlogged exceedances 
+summary(lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data))
+summary(lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data_subset1))
+summary(lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data_subset2))
+summary(lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data_subset3))
+summary(lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data_subset4))
+summary(lm(exceed100perc_x100~white_pct + hispanic_or_latino_pct + med_household_income_k,weights = total,data=data_subset5))
+
+# does not work but the intention is there
+for (subsets in 1: length(list(data_subset1, data_subset2, data_subset3, data_subset4, data_subset5))) {
+  print(summary(lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=subsets, weights = total)))
+}
+# logged exceedences 
+summary(lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total))
+summary(lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset1, weights = total))
+summary(lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset2, weights = total))
+summary(lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset3, weights = total))
+summary(lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset4, weights = total))
+summary(lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset5, weights = total))
+# unweighted unsubsetted
+summary(lm(log(exceed100perc_x100+1)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data))
+
+
+#logged cfu 
+summary(lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data, weights = total))
+summary(lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset1, weights = total))
+summary(lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset2, weights = total))
+summary(lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset3, weights = total))
+summary(lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset4, weights = total))
+summary(lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_subset5, weights = total))
+
 
