@@ -40,7 +40,7 @@ data$exceed100perc_x100 = data$exceed100perc * 100
 # make subsets removing outliers 
 # excluding 3 largest beaches 
 data_minus3 = subset(data, total < 9500000)
-# excluding 11 visitations above 5 million, a possible outlier cutoff
+# excluding 11 visitations above 5 million
 data_minus11 = subset(data, total < 5000000)
 # excluding top 10% largest beaches 
 data_minus10pct = subset(data, total < 1556797.54)
@@ -61,10 +61,12 @@ data_minus10pct = subset(data, total < 1556797.54)
 head(data)
 summary(data)
 
-# histogram of visitation, showing potential outlier cutoffs 
-ggplot(data=data, bins = 100, aes(x=total)) +
+# histogram and quantiles of visitation, showing potential outlier cutoffs 
+ggplot(data=data, aes(x=total)) +
   geom_histogram(fill="steelblue", color="black") +
-  ggtitle("Histogram of total visitation") 
+  ggtitle("Histogram of total visitation")
+
+quantile(data$total, probs = seq(0, 1, 0.05), na.rm = FALSE)
 
 
 # look at correlations 
@@ -159,7 +161,7 @@ poorerObs = data.frame(white_pct=88, hispanic_or_latino_pct=5, med_household_inc
 
 #use model to predict change in exceedance/cfu in scenario
 'example interpretion: A 10% increase (from 12% to 22%) in the chance that a 
-beach visit is by a non-white person is associated with a 3.7% increase in the 
+beach visit is by a non-white person is associated with a x% increase/decrease in the 
 number of exceedances at that beach
 '
 lessWhitePred_Exceedance = exp(predict(r_exceed_minus11, whiterObs )) - exp(predict(r_exceed_minus11, lesswhiteObs))
@@ -171,20 +173,49 @@ MoreHispanicPred_Exceedance = exp(predict(r_cfu_minus11, lessHispanicObs )) - ex
 lessRichPred_Exceedance =  exp(predict(r_cfu_minus11, richerObs )) - exp(predict(r_cfu_minus11, poorerObs))
 
 
-#stargazer output 
-# add components to model objects 
-reg_lw$AIC = AIC(reg5w)
-reg_lwlog$AIC = AIC(reg5wlog)
-regcg$AIC = AIC(reg5wlog)
 
-# Table for exceedence models 
-stargazer(reg_lw,reg_lwlog, regcg, header=FALSE,title="Regression table", 
+
+
+
+
+#stargazer output 
+
+
+# add AICs to model objects 
+# could be a for loop but I don't understand for loops in r 
+  
+r_cfu_alldata$AIC = AIC(r_cfu_alldata)
+r_cfu_noweights$AIC = AIC(r_cfu_noweights)
+r_cfu_minus10pct$AIC = AIC(r_cfu_minus10pct)
+r_cfu_minus11$AIC = AIC(r_cfu_minus11)
+r_cfu_minus3$AIC = AIC(r_cfu_minus3)
+
+r_exceed_alldata$AIC = AIC(r_exceed_alldata)
+r_exceed_noweights$AIC = AIC(r_exceed_noweights)
+r_exceed_minus10pct$AIC = AIC(r_exceed_minus10pct)
+r_exceed_minus11$AIC = AIC(r_exceed_minus11)
+r_exceed_minus3$AIC = AIC(r_exceed_minus3)
+
+
+# Table for exceedence models
+stargazer(r_exceed_noweights, r_exceed_minus11, r_exceed_alldata, header=FALSE,title="Log of percent exceedances regressions", 
           type='text',
+          column.labels=c("Unweighted","Weighted, outliers removed", "Weighted, all obs."),
+          covariate.labels = c("Percent white", "Percent Hispanic or Latino","Median household income (thousands)"),
+          dep.var.labels = c("" ),
           keep.stat = c("n", "rsq", "adj.rsq", "ll", "f", "ser", "aic"),
-          #keep.stat = c("all"),
           digits=3)
 
 # Table for CFU models 
+
+stargazer(r_cfu_noweights, r_cfu_minus11, r_cfu_alldata, header=FALSE,title="Log of mean CFU regressions", 
+          type='text',
+          column.labels=c("Unweighted","Weighted, outliers removed", "Weighted, all obs."),
+          covariate.labels = c("Percent white", "Percent Hispanic or Latino","Median household income (thousands)"),
+          dep.var.labels = c("" ),
+          keep.stat = c("n", "rsq", "adj.rsq", "ll", "f", "ser", "aic"),
+          digits=3)
+
 
 
 '
@@ -209,12 +240,26 @@ makeRate <- function(cfu){
   0.20 + (12.17*log10(cfu))
 }
 
-rate_per1k_white = makeRate(weighted.mean(data$cfuGeomMean, data$white_pct))
-rate_per1k_black = makeRate(weighted.mean(data$cfuGeomMean, data$black_pct))
-rate_per1k_hispanic = makeRate(weighted.mean(data$cfuGeomMean, data$hispanic_or_latino_pct))
+# rates for all data 
+rate_per1k_white_alldata = makeRate(weighted.mean(data$cfuGeomMean, data$white_pct))
+rate_per1k_black_alldata = makeRate(weighted.mean(data$cfuGeomMean, data$black_pct))
+rate_per1k_hispanic_alldata = makeRate(weighted.mean(data$cfuGeomMean, data$hispanic_or_latino_pct))
+
+# rates for "minus 3" subset 
+rate_per1k_white_minus3 = makeRate(weighted.mean(data_minus3$cfuGeomMean, data_minus3$white_pct))
+rate_per1k_black_minus3 = makeRate(weighted.mean(data_minus3$cfuGeomMean, data_minus3$black_pct))
+rate_per1k_hispanic_minus3 = makeRate(weighted.mean(data_minus3$cfuGeomMean, data_minus3$hispanic_or_latino_pct))
 
 
+# rates for "minus 11" subset 
+rate_per1k_white_minus11 = makeRate(weighted.mean(data_minus11$cfuGeomMean, data_minus11$white_pct))
+rate_per1k_black_minus11 = makeRate(weighted.mean(data_minus11$cfuGeomMean, data_minus11$black_pct))
+rate_per1k_hispanic_minus11 = makeRate(weighted.mean(data_minus11$cfuGeomMean, data_minus11$hispanic_or_latino_pct))
 
+# rates for "minus 10 percent" subset 
+rate_per1k_white_minus10pct = makeRate(weighted.mean(data_minus10pct$cfuGeomMean, data_minus10pct$white_pct))
+rate_per1k_black_minus10pct = makeRate(weighted.mean(data_minus10pct$cfuGeomMean, data_minus10pct$black_pct))
+rate_per1k_hispanic_minus10pct = makeRate(weighted.mean(data_minus10pct$cfuGeomMean, data_minus10pct$hispanic_or_latino_pct))
 
 
 
