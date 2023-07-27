@@ -11,7 +11,7 @@ Run all of this first
 '
 # load packages
 pacman::p_load(here, pscl, boot, dplyr, tidyverse, car, lmtest, stargazer, AER, 
-               MASS, broom, margins)
+               MASS, broom, margins, dotwhisker)
 
 rm(list=ls()) #clear environment 
 
@@ -136,7 +136,55 @@ round(cor(data[c('white_pct',
     # Weighted, "minus 10 percent" subset 
     r_cfu_minus10pct = lm(log(cfuGeomMean)~white_pct + hispanic_or_latino_pct + med_household_income_k,data=data_minus10pct, weights = total)
     summary(r_cfu_minus10pct)
+    
+    
 # Model diagnostics and plots 
+
+# general diagnostics for choosing among functional forms, etc 
+
+par(mfrow = c(2, 2)) # makes the figure window a 2x2 grid so you can see all 4 plots
+plot(r_cfu_alldata)
+plot(r_cfu_noweights)
+plot(r_cfu_minus11)
+
+
+# regression coefficients plot
+# for CFU
+dwplot(list(r_cfu_noweights, r_cfu_alldata, r_cfu_minus11),
+       vline = geom_vline(
+         xintercept = 0,
+         colour = "grey60",
+         linetype = 2
+       )
+       ) %>% # plot line at zero _behind_coefs
+         relabel_predictors(
+           c(
+             white_pct = "Percent white",
+             hispanic_or_latino_pct = "Percent Hispanic or Latino",
+             med_household_income_k = "Median household income (thousands)"
+           )
+         
+       )
+
+
+
+# for exceedances 
+dwplot(list(r_exceed_noweights, r_exceed_alldata, r_exceed_minus11),
+       vline = geom_vline(
+         xintercept = 0,
+         colour = "grey60",
+         linetype = 2
+       )
+) %>% # plot line at zero _behind_coefs
+  relabel_predictors(
+    c(
+      white_pct = "Percent white",
+      hispanic_or_latino_pct = "Percent Hispanic or Latino",
+      med_household_income_k = "Median household income (thousands)"
+    )
+    
+  )
+
 
 
 
@@ -147,7 +195,7 @@ round(cor(data[c('white_pct',
 # predictions -- useful for interpreting log linear regression coefficients
 # for now, predicting for weighted regressions based on the "minus 11" subset, 
 # and for a scenario when var of interest increases/ decreases from median by 10 percent / $10k
-# but this section is flexible
+# but this section is flexibleish
 
 #define new example observation -- vary variable of interest and hold others constant 
 whiterObs = data.frame(white_pct=88, hispanic_or_latino_pct=5, med_household_income_k = 96)
@@ -160,17 +208,17 @@ richerObs = data.frame(white_pct=88, hispanic_or_latino_pct=5, med_household_inc
 poorerObs = data.frame(white_pct=88, hispanic_or_latino_pct=5, med_household_income_k = 86)
 
 #use model to predict change in exceedance/cfu in scenario
-'example interpretion: A 10% increase (from 12% to 22%) in the chance that a 
+'example interpretion: A 10% increase/decrease (from 12% to 22%) in the chance that a 
 beach visit is by a non-white person is associated with a x% increase/decrease in the 
 number of exceedances at that beach
 '
-lessWhitePred_Exceedance = exp(predict(r_exceed_minus11, whiterObs )) - exp(predict(r_exceed_minus11, lesswhiteObs))
-MoreHispanicPred_Exceedance = exp(predict(r_exceed_minus11, lessHispanicObs )) - exp(predict(r_exceed_minus11, moreHispanicObs))
-lessRichPred_Exceedance =   exp(predict(r_exceed_minus11, richerObs )) - exp(predict(r_exceed_minus11, poorerObs))
+lessWhitePred_Exceedance = exp(predict(r_exceed_minus11, lesswhiteObs )) - exp(predict(r_exceed_minus11, whiterObs))
+MoreHispanicPred_Exceedance = exp(predict(r_exceed_minus11, moreHispanicObs )) - exp(predict(r_exceed_minus11, lessHispanicObs))
+lessRichPred_Exceedance =   exp(predict(r_exceed_minus11, poorerObs )) - exp(predict(r_exceed_minus11, richerObs))
   
-lessWhitePred_Exceedance = exp(predict(r_cfu_minus11, whiterObs )) - exp(predict(r_cfu_minus11, lesswhiteObs))
-MoreHispanicPred_Exceedance = exp(predict(r_cfu_minus11, lessHispanicObs )) - exp(predict(r_cfu_minus11, moreHispanicObs))
-lessRichPred_Exceedance =  exp(predict(r_cfu_minus11, richerObs )) - exp(predict(r_cfu_minus11, poorerObs))
+lessWhitePred_CFU = exp(predict(r_cfu_minus11, lesswhiteObs )) - exp(predict(r_cfu_minus11, whiterObs))
+MoreHispanicPred_CFU = exp(predict(r_cfu_minus11, moreHispanicObs )) - exp(predict(r_cfu_minus11, lessHispanicObs))
+lessRichPred_CFU =  exp(predict(r_cfu_minus11, poorerObs )) - exp(predict(r_cfu_minus11, richerObs))
 
 
 
@@ -198,9 +246,9 @@ r_exceed_minus3$AIC = AIC(r_exceed_minus3)
 
 
 # Table for exceedence models
-stargazer(r_exceed_noweights, r_exceed_minus11, r_exceed_alldata, header=FALSE,title="Log of percent exceedances regressions", 
+stargazer(r_exceed_noweights, r_exceed_alldata, r_exceed_minus11, header=FALSE,title="Log of percent exceedances regressions", 
           type='text',
-          column.labels=c("Unweighted","Weighted, outliers removed", "Weighted, all obs."),
+          column.labels=c("Unweighted", "Weighted, all obs.","Weighted, outliers removed"),
           covariate.labels = c("Percent white", "Percent Hispanic or Latino","Median household income (thousands)"),
           dep.var.labels = c("" ),
           keep.stat = c("n", "rsq", "adj.rsq", "ll", "f", "ser", "aic"),
@@ -208,9 +256,9 @@ stargazer(r_exceed_noweights, r_exceed_minus11, r_exceed_alldata, header=FALSE,t
 
 # Table for CFU models 
 
-stargazer(r_cfu_noweights, r_cfu_minus11, r_cfu_alldata, header=FALSE,title="Log of mean CFU regressions", 
+stargazer(r_cfu_noweights, r_cfu_alldata, r_cfu_minus11, header=FALSE,title="Log of mean CFU regressions", 
           type='text',
-          column.labels=c("Unweighted","Weighted, outliers removed", "Weighted, all obs."),
+          column.labels=c("Unweighted", "Weighted, all obs.","Weighted, outliers removed"),
           covariate.labels = c("Percent white", "Percent Hispanic or Latino","Median household income (thousands)"),
           dep.var.labels = c("" ),
           keep.stat = c("n", "rsq", "adj.rsq", "ll", "f", "ser", "aic"),
